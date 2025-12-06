@@ -32,7 +32,7 @@ async def fetch_messages_for_year(channel_identifier, max_messages=None):
 
         async for msg in telegram_client.client.iter_messages(channel, reverse=False):
             if msg.date < start_utc:
-                continue
+                break
             messages_out.append({
                 "id": msg.id,
                 "date": msg.date.isoformat(),
