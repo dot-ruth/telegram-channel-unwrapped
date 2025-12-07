@@ -72,7 +72,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Your channel’s yearly summary\n"
         "• The top performing post of the year\n"
         "• A visual unwrapped card\n\n"
-        "For more details, use /help."
+        "For more details, use /help.\n\n"
+        "Creator of this bot: @dot_ruth\n\n"
     )
     return
 
