@@ -17,7 +17,10 @@ from telegram.ext import (
 from telethon.errors import ChannelPrivateError, ChannelInvalidError
 from generate_card import create_summary_card
 
+PROCESSING_SEMAPHORE = asyncio.Semaphore(2)
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+
 
 async def fetch_messages_for_year(channel_identifier, session_id):
     year = datetime.now().year
@@ -95,31 +98,50 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session_id = str(uuid.uuid4())
+    if update.message is None or update.message.text is None:
+        return
     channel_username = update.message.text.strip()
-    if not channel_username.startswith("@"):
+    if not channel_username.startswith("@") or not update.message:
         await update.message.reply_text("Please send a valid channel username starting with @.")
         return
     
     await update.message.reply_text(f"Fetching messages from {channel_username}... This may take a while.")
-    asyncio.create_task(process_summary(update, context, channel_username, session_id))
+    await process_summary(update, context, channel_username, session_id)
 
     return ConversationHandler.END
 
 async def process_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, channel_username, session_id):
+    
     try:
         fetched_count = await fetch_messages_for_year(channel_identifier=channel_username, session_id=session_id)
 
         if fetched_count:
             json_file_path = f"./{channel_username}-{session_id}.json"
-            card_file,top_post_id = await create_summary_card(json_file_path,channel_username=channel_username,session_id=session_id )
+            card_file,top_post_id,total_posts, avg_views, total_views, top_post_views, most_active_hour, most_active_weekday, most_active_month = await create_summary_card(json_file_path,channel_username=channel_username,session_id=session_id )
             clean_username = channel_username.lstrip("@")
-            top_post = f"https://t.me/{clean_username}/{top_post_id}"
+            top_post_link = f"https://t.me/{clean_username}/{top_post_id}"
         
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
                 photo=open(card_file, "rb"),
-                caption=f"Channel summary for {datetime.now().year} \n your top preforming post of the year is {top_post} "
+                caption = (
+                    f"Channel Summary for {datetime.now().year} 🎉\n\n"
+                    "Views\n"
+                    f"• {total_posts:,} Total Posts\n"
+                    f"• {avg_views:,} Average Views\n"
+                    f"• {total_views:,} Total Views\n\n"
+                    "Top Post\n"
+                    f"• {top_post_views:,} Views\n"
+                    f"• {top_post_link}\n\n"
+                    "Activity\n"
+                    f"• {most_active_hour} is when you were most active\n"
+                    f"• {most_active_weekday} is your most active day\n"
+                    f"• {most_active_month} is your most active month\n\n"
+                    "@channel_unwrapped_bot"
+                )
             )
+            os.remove(card_file)
+            os.remove(json_file_path)
         else:
             await update.message.reply_text(f"Failed to fetch messages from {channel_username}.")
 

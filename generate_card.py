@@ -58,13 +58,8 @@ async def create_summary_card(json_file_path, channel_username, session_id):
     header_font = ImageFont.truetype(FONT_PATH, size=30)
     value_font = ImageFont.truetype(FONT_PATH, size=30)
     small_font = ImageFont.truetype(FONT_PATH, size=24)
-
-    # title_font = ImageFont.load_default(size=55)
-    # header_font = ImageFont.load_default(size=30)
-    # value_font = ImageFont.load_default(size=30)
-    # small_font = ImageFont.load_default(size=24)
     
-    card = Image.new("RGB", (CARD_WIDTH, CARD_HEIGHT), BACKGROUND_COLOR)
+    card = Image.new("RGBA", (CARD_WIDTH, CARD_HEIGHT), BACKGROUND_COLOR)
     draw = ImageDraw.Draw(card)
 
     photo_bytes = await get_channel_photo(channel_username)
@@ -105,10 +100,10 @@ async def create_summary_card(json_file_path, channel_username, session_id):
 
 
     stats = [
-        ("Total Posts", total_posts, 0),
-        ("Total Views", total_views, 1),
-        ("Average Views", avg_views, 2),
-        ("Top Post Views", top_post_views, 3),
+        ("Total Posts", f"{total_posts:,}", 0),
+        ("Total Views", f"{total_views:,}", 1),
+        ("Average Views", f"{avg_views:,}", 2),
+        ("Top Post Views", f"{top_post_views:,}", 3),
         ("Most Active hour", format_hour(most_active_hour), 4),
         ("Most Active day", weekday_name, 5),
         ("Most Active Month", datetime(1900, most_active_month, 1).strftime('%B'), 6),
@@ -122,7 +117,7 @@ async def create_summary_card(json_file_path, channel_username, session_id):
 
     for label, value, index in stats:
         y = START_Y + (SPACING_Y * index)
-        rect_color = (50, 50, 50, 180) 
+        rect_color = (50, 50, 50, 255) 
     
         draw.rounded_rectangle(
             [(50, y), (CARD_WIDTH - 50, y + BOX_H)],
@@ -147,4 +142,4 @@ async def create_summary_card(json_file_path, channel_username, session_id):
     output_filename = f"{channel_username}-{session_id}.png"
     card.save(output_filename)
     
-    return output_filename, top_post_id
+    return output_filename, top_post_id,total_posts, avg_views, total_views, top_post_views, format_hour(most_active_hour), weekday_name, datetime(1900, most_active_month, 1).strftime('%B')
