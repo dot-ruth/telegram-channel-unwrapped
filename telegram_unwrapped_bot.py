@@ -128,7 +128,7 @@ async def process_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, ch
     except Exception as e:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f"An error occurred in session {session_id}: {e}"
+            text=f"{e}"
         )
     
 
