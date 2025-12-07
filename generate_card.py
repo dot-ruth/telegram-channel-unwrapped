@@ -1,9 +1,13 @@
 import json
 from datetime import datetime
 from collections import Counter
+import os
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 from io import BytesIO
 import telegram_client
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FONT_PATH = os.path.join(BASE_DIR, "fonts", "NotoSansEthiopic.ttf")
 
 def format_hour(h):
     suffix = "AM" if h < 12 else "PM"
@@ -50,10 +54,15 @@ async def create_summary_card(json_file_path, channel_username, session_id):
     CARD_WIDTH, CARD_HEIGHT = 900, 1300
     BACKGROUND_COLOR = (40, 40, 40)
 
-    title_font = ImageFont.load_default(size=55)
-    header_font = ImageFont.load_default(size=30)
-    value_font = ImageFont.load_default(size=30)
-    small_font = ImageFont.load_default(size=24)
+    title_font = ImageFont.truetype(FONT_PATH, size=50)
+    header_font = ImageFont.truetype(FONT_PATH, size=30)
+    value_font = ImageFont.truetype(FONT_PATH, size=30)
+    small_font = ImageFont.truetype(FONT_PATH, size=24)
+
+    # title_font = ImageFont.load_default(size=55)
+    # header_font = ImageFont.load_default(size=30)
+    # value_font = ImageFont.load_default(size=30)
+    # small_font = ImageFont.load_default(size=24)
     
     card = Image.new("RGB", (CARD_WIDTH, CARD_HEIGHT), BACKGROUND_COLOR)
     draw = ImageDraw.Draw(card)
