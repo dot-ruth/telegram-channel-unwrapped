@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from collections import Counter
+import re
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 from io import BytesIO
 import telegram_client
@@ -86,10 +87,12 @@ async def create_summary_card(json_file_path, channel_username, session_id):
                  outline=(255, 255, 255, 100), width=3)
 
 
-    channel_str = data.get("channel", "")
-    parts = channel_str.split("title='")
-    if len(parts) > 1:
-        channel_name = parts[1].rsplit("'", 1)[0] 
+    channel_str = data["channel"]
+
+    # Look for title="...anything..." safely
+    match = re.search(r'title="(.*?)"', channel_str)
+    if match:
+        channel_name = match.group(1)
     else:
         channel_name = "Unknown Channel"
     draw.text((CARD_WIDTH//2, pfp_y + PFP_SIZE + 70), channel_name,
