@@ -5,6 +5,12 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 from io import BytesIO
 import telegram_client
 
+def format_hour(h):
+    suffix = "AM" if h < 12 else "PM"
+    hour = h % 12
+    hour = 12 if hour == 0 else hour
+    return f"{hour} {suffix}"
+
 async def get_channel_photo(channel_username):
     try:
         channel = await telegram_client.client.get_entity(channel_username)
@@ -17,7 +23,7 @@ async def get_channel_photo(channel_username):
         print(f"Error fetching channel photo: {e}")
         return None
 
-async def create_summary_card(json_file_path, channel_username):
+async def create_summary_card(json_file_path, channel_username, session_id):
     with open(json_file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -33,13 +39,15 @@ async def create_summary_card(json_file_path, channel_username):
     avg_views = total_views // total_posts if total_posts else 0
     days = [datetime.fromisoformat(msg["date"]).weekday() for msg in messages]
     most_active_weekday = Counter(days).most_common(1)[0][0]
+    hours = [datetime.fromisoformat(msg["date"]).hour for msg in messages]
+    most_active_hour = Counter(hours).most_common(1)[0][0]
 
     weekday_name = [
         "Monday", "Tuesday", "Wednesday", "Thursday",
         "Friday", "Saturday", "Sunday"
     ][most_active_weekday]
 
-    CARD_WIDTH, CARD_HEIGHT = 900, 1200
+    CARD_WIDTH, CARD_HEIGHT = 900, 1300
     BACKGROUND_COLOR = (40, 40, 40)
 
     title_font = ImageFont.load_default(size=55)
@@ -91,8 +99,10 @@ async def create_summary_card(json_file_path, channel_username):
         ("Total Views", total_views, 1),
         ("Average Views", avg_views, 2),
         ("Top Post Views", top_post_views, 3),
-        ("Most Active day", weekday_name, 4),
-        ("Most Active Month", datetime(1900, most_active_month, 1).strftime('%B'), 5),
+        ("Most Active hour", format_hour(most_active_hour), 4),
+        ("Most Active day", weekday_name, 5),
+        ("Most Active Month", datetime(1900, most_active_month, 1).strftime('%B'), 6),
+        
     ]
 
     START_Y = 400
@@ -124,7 +134,7 @@ async def create_summary_card(json_file_path, channel_username):
     card.save(output_buffer, format="PNG")
     output_buffer.seek(0)
     
-    output_filename = f"{channel_username}.png"
+    output_filename = f"{channel_username}-{session_id}.png"
     card.save(output_filename)
     
     return output_filename, top_post_id
