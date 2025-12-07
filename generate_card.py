@@ -41,20 +41,12 @@ async def create_summary_card(json_file_path, channel_username):
 
     CARD_WIDTH, CARD_HEIGHT = 900, 1200
     BACKGROUND_COLOR = (40, 40, 40)
+
+    title_font = ImageFont.load_default(size=55)
+    header_font = ImageFont.load_default(size=30)
+    value_font = ImageFont.load_default(size=30)
+    small_font = ImageFont.load_default(size=24)
     
-    try:
-        title_font = ImageFont.truetype("arialbd.ttf", 55)
-        header_font = ImageFont.truetype("arialbd.ttf", 30)
-        value_font = ImageFont.truetype("arialbd.ttf", 30)
-        small_font = ImageFont.truetype("arial.ttf", 24)
-    except IOError:
-        print("Using default font. Install 'arial.ttf' and 'arialbd.ttf' for best results.")
-        title_font = ImageFont.load_default()
-        header_font = ImageFont.load_default()
-        value_font = ImageFont.load_default()
-        small_font = ImageFont.load_default()
-
-
     card = Image.new("RGB", (CARD_WIDTH, CARD_HEIGHT), BACKGROUND_COLOR)
     draw = ImageDraw.Draw(card)
 
