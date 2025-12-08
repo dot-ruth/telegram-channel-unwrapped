@@ -31,7 +31,7 @@ async def safe_call(func,context: ContextTypes.DEFAULT_TYPE, update:Update, *arg
         except FloodWaitError as e:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=f"sleeping {e.seconds} seconds 😅"
+                text=f"sleeping {e.seconds} seconds 😅, try again after a moment"
             )
             await asyncio.sleep(e.seconds)
 
@@ -174,7 +174,7 @@ async def process_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, ch
                     f"• {most_active_hour} is when you were most active\n"
                     f"• {most_active_weekday} is your most active day\n"
                     f"• {most_active_month} is your most active month\n\n"
-                    "@channel_unwrapped_bot"
+                    "@channel_unwrapped_bot #channel_unwrapped"
                 )
             )
             os.remove(card_file)
