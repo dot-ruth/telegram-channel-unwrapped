@@ -14,22 +14,47 @@ from telegram.ext import (
     filters
 )
 
-from telethon.errors import ChannelPrivateError, ChannelInvalidError
+from telethon.errors import ChannelPrivateError, ChannelInvalidError, FloodWaitError
 from generate_card import create_summary_card
 
-PROCESSING_SEMAPHORE = asyncio.Semaphore(2)
+PROCESSING_SEMAPHORE = asyncio.Semaphore(1)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+async def safe_call(func,context: ContextTypes.DEFAULT_TYPE, update:Update, *args, **kwargs):
+    """
+    Wrap a Telethon call safely to handle FloodWaitError automatically.
+    """
+    while True:
+        try:
+            return await func(*args, **kwargs)
+        except FloodWaitError as e:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"sleeping {e.seconds} seconds 😅"
+            )
+            await asyncio.sleep(e.seconds)
 
-async def fetch_messages_for_year(channel_identifier, session_id):
+
+async def fetch_messages_for_year(channel_identifier, session_id, context: ContextTypes.DEFAULT_TYPE, update:Update):
+    async with PROCESSING_SEMAPHORE:
+        return await _fetch_messages_for_year(channel_identifier, session_id, context = context, update = update)
+
+
+async def _fetch_messages_for_year(channel_identifier, session_id, context: ContextTypes.DEFAULT_TYPE, update:Update ):
     year = datetime.now().year
 
     start_local = datetime(year, 1, 1, 0, 0, 0)
     start_utc = start_local.astimezone(timezone.utc)
 
     try:
-        channel = await telegram_client.client.get_entity(channel_identifier)
+        channel = await safe_call(
+            telegram_client.client.get_entity,
+            context,
+            update,
+            channel_identifier,
+        )
+
         messages_out = []
         count = 0
 
@@ -104,8 +129,8 @@ async def handle_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not channel_username.startswith("@") or not update.message:
         await update.message.reply_text("Please send a valid channel username starting with @.")
         return
-    
-    await update.message.reply_text(f"Fetching messages from {channel_username}... This may take a while.")
+    if update.message:
+        await update.message.reply_text(f"Fetching messages from {channel_username}... This may take a while.")
     await process_summary(update, context, channel_username, session_id)
 
     return ConversationHandler.END
@@ -113,11 +138,23 @@ async def handle_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def process_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, channel_username, session_id):
     
     try:
-        fetched_count = await fetch_messages_for_year(channel_identifier=channel_username, session_id=session_id)
+        fetched_count = await fetch_messages_for_year(
+            channel_identifier=channel_username,
+            session_id=session_id,
+            context=context,
+            update=update
+        )
 
         if fetched_count:
             json_file_path = f"./{channel_username}-{session_id}.json"
-            card_file,top_post_id,total_posts, avg_views, total_views, top_post_views, most_active_hour, most_active_weekday, most_active_month = await create_summary_card(json_file_path,channel_username=channel_username,session_id=session_id )
+
+            card_file, top_post_id, total_posts, avg_views, total_views, top_post_views, \
+            most_active_hour, most_active_weekday, most_active_month = await create_summary_card(
+                json_file_path,
+                channel_username=channel_username,
+                session_id=session_id
+            )
+
             clean_username = channel_username.lstrip("@")
             top_post_link = f"https://t.me/{clean_username}/{top_post_id}"
         

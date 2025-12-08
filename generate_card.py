@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime
 from collections import Counter
@@ -5,6 +6,9 @@ import os
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 from io import BytesIO
 import telegram_client
+from telethon.errors import FloodWaitError
+
+PROCESSING_SEMAPHORE = asyncio.Semaphore(1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FONT_PATH = os.path.join(BASE_DIR, "fonts", "NotoSansEthiopic.ttf")
@@ -15,14 +19,45 @@ def format_hour(h):
     hour = 12 if hour == 0 else hour
     return f"{hour} {suffix}"
 
+async def safe_call(func, *args, **kwargs):
+    """
+    Wrap a Telethon call safely to handle FloodWaitError automatically.
+    """
+    while True:
+        try:
+            return await func(*args, **kwargs)
+        except FloodWaitError as e:
+            print(f"sleeping {e.seconds} seconds 😅")
+            await asyncio.sleep(e.seconds)
+
 async def get_channel_photo(channel_username):
+    async with PROCESSING_SEMAPHORE:
+        return await _get_channel_photo(channel_username)
+
+async def _get_channel_photo(channel_username):
     try:
-        channel = await telegram_client.client.get_entity(channel_username)
-        photos = await telegram_client.client.get_profile_photos(channel, limit=1)
+        channel = await safe_call(
+            telegram_client.client.get_entity,
+            channel_username
+        )
+
+        photos = await safe_call(
+            telegram_client.client.get_profile_photos,
+            channel,
+            limit=1
+        )
+
         if not photos:
             return None
-        photo_bytes = await telegram_client.client.download_media(photos[0], file=bytes)
+
+        photo_bytes = await safe_call(
+            telegram_client.client.download_media,
+            photos[0],
+            file=bytes
+        )
+
         return photo_bytes
+
     except Exception as e:
         print(f"Error fetching channel photo: {e}")
         return None
@@ -128,12 +163,10 @@ async def create_summary_card(json_file_path, channel_username, session_id):
         )
         
         draw.text((75, y + TEXT_H_OFFSET), label, font=header_font, fill=(255, 255, 255))
-        value_str = str(value)
         value_x = CARD_WIDTH - 75
         
-        draw.text((value_x, y + TEXT_H_OFFSET), value_str, 
-                  font=value_font, fill=(255, 255, 255), 
-                  anchor="ra")
+        draw.text((value_x, y + TEXT_H_OFFSET), str(value), 
+                  font=value_font, fill=(255, 255, 255), anchor="ra")
 
     output_buffer = BytesIO()
     card.save(output_buffer, format="PNG")
@@ -142,4 +175,14 @@ async def create_summary_card(json_file_path, channel_username, session_id):
     output_filename = f"{channel_username}-{session_id}.png"
     card.save(output_filename)
     
-    return output_filename, top_post_id,total_posts, avg_views, total_views, top_post_views, format_hour(most_active_hour), weekday_name, datetime(1900, most_active_month, 1).strftime('%B')
+    return (
+        output_filename,
+        top_post_id,
+        total_posts,
+        avg_views,
+        total_views,
+        top_post_views,
+        format_hour(most_active_hour),
+        weekday_name,
+        datetime(1900, most_active_month, 1).strftime('%B')
+    )
