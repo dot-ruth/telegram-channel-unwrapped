@@ -27,7 +27,9 @@ async def safe_call(func,context: ContextTypes.DEFAULT_TYPE, update:Update, *arg
     """
     while True:
         try:
-            return await func(*args, **kwargs)
+            result = await func(*args, **kwargs)
+            await asyncio.sleep(2.0)
+            return result
         except FloodWaitError as e:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
