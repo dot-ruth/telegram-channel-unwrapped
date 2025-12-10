@@ -61,8 +61,8 @@ async def _fetch_messages_for_year(channel_identifier, session_id, context: Cont
         count = 0
 
         async for msg in telegram_client.client.iter_messages(channel, reverse=False):
-            # if msg.date < start_utc:
-            #     break
+            if msg.date < start_utc:
+                break
             messages_out.append({
                 "id": msg.id,
                 "date": msg.date.isoformat(),
@@ -151,9 +151,7 @@ async def process_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, ch
             json_file_path = f"./{channel_username}-{session_id}.json"
 
             card_file, top_post_id, total_posts, avg_views, total_views, top_post_views, \
-            most_active_hour, most_active_weekday, most_active_month, \
-            most_active_year,sorted_views_by_year,least_active_year, \
-            posts_by_year,top_post_by_year,top_post_by_year_id = await create_summary_card(
+            most_active_hour, most_active_weekday, most_active_month = await create_summary_card(
                 json_file_path,
                 channel_username=channel_username,
                 session_id=session_id
@@ -161,41 +159,24 @@ async def process_summary(update: Update, context: ContextTypes.DEFAULT_TYPE, ch
 
             clean_username = channel_username.lstrip("@")
             top_post_link = f"https://t.me/{clean_username}/{top_post_id}"
-
-            year_view_lines = []
-
-            for year, total_year_views in sorted_views_by_year:
-                post_count = posts_by_year.get(year, 0)
-
-                top_views, top_post_by_year_id = top_post_by_year.get(year, (0, None))
-                top_post_link = f"https://t.me/{clean_username}/{top_post_by_year_id}" if top_post_by_year_id else "N/A"
-
-                year_view_lines.append(
-                    f"{year}\n"
-                    f"• {total_year_views:,} views — {post_count} posts\n"
-                    f"""• Top Post: {top_views:,} views — <a href="{top_post_link}">Post</a>\n"""
-                )
-
-            year_view_text = "\n".join(year_view_lines)
         
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
                 photo=open(card_file, "rb"),
-                parse_mode="HTML",
                 caption = (
-                    f"Channel Summary\n\n"
+                    f"Channel Summary for {datetime.now().year} 🎉\n\n"
                     "Views\n"
-                    f"• Total Posts: {total_posts:,}\n"
-                    f"• Total Views: {total_views:,}\n\n"
-                    "Most Activity\n"
-                    f"• Hour: {most_active_hour}\n"
-                    f"• Day: {most_active_weekday}\n"
-                    f"• Month: {most_active_month}\n"
-                    f"• Year: {most_active_year}\n\n"
-                    "Top Post by Year\n"
-                    f"{year_view_text}\n"
-                    
-                    "@Channel_Unwrapped_Bot\n"
+                    f"• {total_posts:,} Total Posts\n"
+                    f"• {avg_views:,} Average Views\n"
+                    f"• {total_views:,} Total Views\n\n"
+                    "Top Post\n"
+                    f"• {top_post_views:,} Views\n"
+                    f"• {top_post_link}\n\n"
+                    "Activity\n"
+                    f"• {most_active_hour} is when you were most active\n"
+                    f"• {most_active_weekday} is your most active day\n"
+                    f"• {most_active_month} is your most active month\n\n"
+                    "@channel_unwrapped_bot #channel_unwrapped"
                 )
             )
             os.remove(card_file)
