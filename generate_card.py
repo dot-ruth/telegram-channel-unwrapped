@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import datetime
-from collections import Counter
+from collections import Counter, defaultdict
 import os
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
 from io import BytesIO
@@ -86,6 +86,28 @@ async def create_summary_card(json_file_path, channel_username, session_id):
         "Friday", "Saturday", "Sunday"
     ][most_active_weekday]
 
+    views_by_year = defaultdict(int)
+    posts_by_year = defaultdict(int)
+    top_post_by_year = {}
+
+    for msg in messages:
+        date = datetime.fromisoformat(msg["date"])
+        year = date.year
+        views = msg.get("views") or 0
+
+        views_by_year[year] += views
+        posts_by_year[year] += 1
+
+        top_post_by_year_id = msg.get("id")
+
+        if year not in top_post_by_year or views > top_post_by_year[year][0]:
+            top_post_by_year[year] = (views, top_post_by_year_id)
+
+    sorted_views_by_year = sorted(views_by_year.items()) 
+
+    most_active_year = max(posts_by_year.items(), key=lambda x: x[1])[0]
+    least_active_year = min(posts_by_year.items(), key=lambda x: x[1])[0]
+
     CARD_WIDTH, CARD_HEIGHT = 900, 1300
     BACKGROUND_COLOR = (40, 40, 40)
 
@@ -142,7 +164,6 @@ async def create_summary_card(json_file_path, channel_username, session_id):
         ("Most Active hour", format_hour(most_active_hour), 4),
         ("Most Active day", weekday_name, 5),
         ("Most Active Month", datetime(1900, most_active_month, 1).strftime('%B'), 6),
-        
     ]
 
     START_Y = 400
@@ -184,5 +205,11 @@ async def create_summary_card(json_file_path, channel_username, session_id):
         top_post_views,
         format_hour(most_active_hour),
         weekday_name,
-        datetime(1900, most_active_month, 1).strftime('%B')
+        datetime(1900, most_active_month, 1).strftime('%B'),
+        most_active_year,
+        sorted_views_by_year,
+        least_active_year, 
+        posts_by_year,
+        top_post_by_year,
+        top_post_by_year_id,
     )
