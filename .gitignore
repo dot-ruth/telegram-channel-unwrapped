@@ -1,6 +1,7 @@
+__pycache__/
+*.pyc
 .env
 *.session
-*.session-journal
 *.json
 *.png
-__pycache__
+*.pyo
